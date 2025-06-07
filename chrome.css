@@ -1,0 +1,97 @@
+/* URL-бар: только домен и центрирование */
+
+/* Поддержка старого и нового формата настроек */
+@media (-moz-bool-pref: "mod.center-url.show-domain-only") {
+  /* ПОЛНОСТЬЮ скрываем URL-текст в неактивном состоянии */
+  #urlbar:not(:focus):not([focused]) .urlbar-input:not(:focus),
+  #urlbar:not(:focus):not([focused]) input.urlbar-input:not(:focus),
+  #urlbar:not(:focus):not([focused]) .urlbar-input,
+  #urlbar:not(:focus):not([focused]) input {
+      color: transparent !important;
+      opacity: 0 !important;
+      text-shadow: none !important;
+      font-size: 0 !important; /* Делаем текст нулевого размера */
+  }
+
+  /* Отображаем домен через псевдоэлемент */
+  #urlbar:not(:focus):not([focused]) .urlbar-input-container:after {
+      /* Используем CSS-переменную для отображения текущего домена */
+      content: var(--current-domain, ""); /* Значение по умолчанию - пустая строка */
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      color: currentColor !important;
+      font-weight: bold !important;
+      font-size: 14px !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+      pointer-events: none !important;
+      z-index: 9999 !important;
+      background: transparent !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      max-width: 70% !important;
+  }
+
+  /* Возвращаем обычный вид при фокусе */
+  #urlbar:focus .urlbar-input,
+  #urlbar[focused] .urlbar-input,
+  #urlbar .urlbar-input:focus {
+      color: inherit !important;
+      opacity: 1 !important;
+      text-shadow: none !important;
+      font-size: inherit !important;
+      text-align: left !important;
+  }
+
+  /* Скрываем псевдоэлемент при фокусе */
+  #urlbar:focus .urlbar-input-container:after,
+  #urlbar[focused] .urlbar-input-container:after {
+      content: "" !important;
+      display: none !important;
+  }
+}
+
+/* Опция: центрировать URL-бар */
+@media (-moz-bool-pref: "mod.center-url.center-urlbar") {
+  /* Центрируем контейнер */
+  .urlbar-input-container,
+  #urlbar .urlbar-input-container {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      position: relative !important;
+  }
+  
+  /* Центрируем текст, когда показан полный URL */
+  @media not (-moz-bool-pref: "mod.center-url.show-domain-only") {
+    #urlbar:not(:focus):not([focused]) .urlbar-input {
+      text-align: center !important;
+    }
+  }
+  
+  /* Поддержка для плавающего URL-бара (1.12.0+) */
+  #urlbar-container[urlbar-center]:not([open]) > #urlbar:not([open]),
+  #urlbar[open][floating-center] {
+    justify-content: center !important;
+  }
+  
+  /* Поддержка последних версий Zen Browser с плавающим URL-баром */
+  #urlbar.zen-floating-urlbar {
+    justify-content: center !important;
+  }
+}
+
+/* Поддержка темной и светлой темы */
+@media (prefers-color-scheme: dark) {
+  #urlbar:not(:focus):not([focused]) .urlbar-input-container:after {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  #urlbar:not(:focus):not([focused]) .urlbar-input-container:after {
+    color: rgba(0, 0, 0, 0.9) !important;
+  }
+} 
