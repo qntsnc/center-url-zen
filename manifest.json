@@ -1,11 +1,10 @@
 {
   "name": "Center URL",
   "description": "Displays only the domain name in the URL bar, centered for better visibility",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "Claude",
   "files": [
-    "center-url.uc.js",
-    "chrome.css"
+    "center-url.uc.js"
   ],
   "settings": {
     "maxDomainLength": {
