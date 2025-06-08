@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Center URL
-// @version        1.1
-// @description    Extracts domain from URL and sets it as CSS variable for styling
+// @version        1.2
+// @description    Displays only the domain name in URL bar, centered
 // @author         Claude
 // @include        main
 // @startup        center_url_startup
@@ -9,267 +9,157 @@
 // @onlyonce
 // ==/UserScript==
 
-let domainObserver = null;
-let tabUpdateHandlerId = null;
-let tabSelectHandlerId = null;
-let lastURLChecked = "";
-let clickListener = null;
-const MAX_DOMAIN_LENGTH = 30;
+let urlObserver = null;
+let currentDomain = "";
 
 function center_url_startup() {
   try {
-    if (typeof window !== 'undefined' && window.document) {
-      window.addEventListener('load', initializeURLHandler, { once: true });
+    if (window.document.readyState === "complete") {
+      initScript();
+    } else {
+      window.addEventListener('load', initScript, { once: true });
     }
   } catch (e) {
-    console.error("Error in center-url startup:", e);
+    console.error("Center URL startup error:", e);
   }
 }
 
 function center_url_shutdown() {
   try {
-    cleanupHandlers();
-  } catch (e) {
-    console.error("Error in center-url shutdown:", e);
-  }
-}
-
-function cleanupHandlers() {
-  if (domainObserver) {
-    domainObserver.disconnect();
-    domainObserver = null;
-  }
-  
-  if (tabUpdateHandlerId && typeof gBrowser !== 'undefined') {
-    gBrowser.tabContainer.removeEventListener("TabAttrModified", handleTabUpdate);
-    tabUpdateHandlerId = null;
-  }
-  
-  if (tabSelectHandlerId && typeof gBrowser !== 'undefined') {
-    gBrowser.tabContainer.removeEventListener("TabSelect", handleTabSelect);
-    tabSelectHandlerId = null;
-  }
-  
-  if (clickListener && typeof gBrowser !== 'undefined') {
-    gBrowser.tabContainer.removeEventListener("click", handleTabClick);
-    clickListener = null;
-  }
-}
-
-function initializeURLHandler() {
-  try {
-    if (typeof gBrowser === 'undefined') {
-      console.log("gBrowser not available, waiting...");
-      setTimeout(initializeURLHandler, 1000);
-      return;
+    if (urlObserver) {
+      urlObserver.disconnect();
+      urlObserver = null;
     }
-
-    // Clean up any existing handlers
-    cleanupHandlers();
     
-    // Set up multiple ways to detect URL changes
-    setupURLObserver();
-    setupTabHandlers();
-    setupClickListener();
-    
-    // Initialize with current URL
-    updateDomainFromCurrentTab();
-    
-    console.log("Center URL mod initialized successfully");
+    // Remove CSS variable
+    document.documentElement.style.removeProperty("--current-domain");
   } catch (e) {
-    console.error("Error initializing center-url mod:", e);
+    console.error("Center URL shutdown error:", e);
   }
 }
 
-function setupURLObserver() {
+function initScript() {
   try {
-    // Set up observer for URL bar changes
-    domainObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === "attributes" || mutation.type === "childList") {
-          updateDomainFromCurrentTab();
-          break;
-        }
-      }
-    });
+    // Create a MutationObserver to watch for URL changes
+    urlObserver = new MutationObserver(() => updateURL());
     
-    const urlBar = document.getElementById("urlbar");
-    if (urlBar) {
-      domainObserver.observe(urlBar, { 
+    // Start observing urlbar for changes
+    const urlbar = document.getElementById("urlbar-input");
+    if (urlbar) {
+      urlObserver.observe(urlbar, {
         attributes: true,
         childList: true,
+        characterData: true,
         subtree: true
       });
-    }
-  } catch (e) {
-    console.error("Error setting up URL observer:", e);
-  }
-}
-
-function setupTabHandlers() {
-  try {
-    // Set up handlers for tab updates and selection
-    if (typeof gBrowser !== 'undefined') {
-      gBrowser.tabContainer.addEventListener("TabAttrModified", handleTabUpdate);
-      tabUpdateHandlerId = true;
       
-      gBrowser.tabContainer.addEventListener("TabSelect", handleTabSelect);
-      tabSelectHandlerId = true;
+      // Also observe the tab container for tab switches
+      const tabContainer = gBrowser.tabContainer;
+      if (tabContainer) {
+        tabContainer.addEventListener("TabSelect", updateURL);
+      }
+      
+      // Initial URL processing
+      updateURL();
+      
+      console.log("Center URL script initialized successfully");
+    } else {
+      console.error("Could not find urlbar-input element");
     }
   } catch (e) {
-    console.error("Error setting up tab handlers:", e);
+    console.error("Error initializing Center URL script:", e);
   }
 }
 
-function setupClickListener() {
+function updateURL() {
   try {
-    // Set up click listener as another way to detect tab changes
-    if (typeof gBrowser !== 'undefined') {
-      gBrowser.tabContainer.addEventListener("click", handleTabClick);
-      clickListener = true;
-    }
-  } catch (e) {
-    console.error("Error setting up click listener:", e);
-  }
-}
-
-function handleTabUpdate(event) {
-  updateDomainFromCurrentTab();
-}
-
-function handleTabSelect(event) {
-  updateDomainFromCurrentTab();
-}
-
-function handleTabClick(event) {
-  // Small delay to ensure tab selection is complete
-  setTimeout(updateDomainFromCurrentTab, 100);
-}
-
-function updateDomainFromCurrentTab() {
-  try {
-    let currentURL = getCurrentURL();
+    // Get current URL
+    let currentURL = "";
     
-    // Skip if URL hasn't changed
-    if (currentURL === lastURLChecked) {
-      return;
+    try {
+      if (gBrowser && gBrowser.selectedBrowser) {
+        currentURL = gBrowser.selectedBrowser.currentURI.spec;
+      }
+    } catch (e) {
+      console.error("Error getting URL from browser:", e);
     }
     
-    lastURLChecked = currentURL;
+    // If that didn't work, try from the URL bar
+    if (!currentURL) {
+      const urlbar = document.getElementById("urlbar-input");
+      if (urlbar && urlbar.value) {
+        currentURL = urlbar.value;
+      }
+    }
     
     if (!currentURL) {
-      console.log("No URL found");
       return;
     }
     
-    const domain = extractDomain(currentURL);
-    if (domain) {
-      setDomainVariable(domain);
+    // Extract just the domain
+    const domain = extractMainDomain(currentURL);
+    
+    // Update only if domain changed
+    if (domain !== currentDomain) {
+      currentDomain = domain;
+      document.documentElement.style.setProperty("--current-domain", `"${domain}"`);
+      console.log("Domain set to:", domain);
     }
   } catch (e) {
-    console.error("Error updating domain from current tab:", e);
+    console.error("Error updating URL:", e);
   }
 }
 
-function getCurrentURL() {
+function extractMainDomain(url) {
   try {
-    // Method 1: Get URL from location bar
-    const urlBar = document.getElementById("urlbar");
-    if (urlBar && urlBar.value) {
-      return urlBar.value;
-    }
-    
-    // Method 2: Get URL from selected tab
-    if (typeof gBrowser !== 'undefined' && gBrowser.selectedBrowser) {
-      return gBrowser.selectedBrowser.currentURI.spec;
-    }
-    
-    // Method 3: Get URL from location object
-    if (window.content && window.content.location) {
-      return window.content.location.href;
-    }
-    
-    // Method 4: Get URL from active tab content
-    if (typeof gBrowser !== 'undefined' && gBrowser.selectedTab && gBrowser.selectedTab.linkedBrowser) {
-      return gBrowser.selectedTab.linkedBrowser.currentURI.spec;
-    }
-    
-    return "";
-  } catch (e) {
-    console.error("Error getting current URL:", e);
-    return "";
-  }
-}
-
-function extractDomain(url) {
-  try {
-    if (!url) return "";
-    
-    // Handle special pages
-    if (url.startsWith("about:") || url.startsWith("chrome:") || 
-        url.startsWith("resource:") || url.startsWith("moz-extension:")) {
+    // Handle special URLs
+    if (url.startsWith("about:") || 
+        url.startsWith("chrome:") || 
+        url.startsWith("moz-extension:")) {
       return url.split(/[/?#]/)[0];
     }
     
-    // Extract domain from URL
-    let domain = "";
-    
+    // Try to parse URL and extract hostname
+    let hostname = "";
     try {
-      // Simple and reliable domain extraction
-      let urlObj = new URL(url);
-      domain = urlObj.hostname;
-      
-      // Remove www. prefix if present
-      if (domain.startsWith("www.")) {
-        domain = domain.substring(4);
-      }
-      
-      // Get just the main domain (e.g., example.com from sub.example.com)
-      // This is a simplified approach that works for most cases
-      let parts = domain.split('.');
-      
-      if (parts.length > 2) {
-        // Check for country code TLDs (e.g., .co.uk, .com.au)
-        let lastPart = parts[parts.length - 1];
-        let secondLastPart = parts[parts.length - 2];
-        
-        // Special cases for known country TLDs
-        if (lastPart.length === 2 && ['co', 'ac', 'org', 'gov', 'edu'].includes(secondLastPart)) {
-          // For cases like example.co.uk, keep last three parts
-          if (parts.length > 2) {
-            domain = parts.slice(-3).join('.');
-          }
-        } else {
-          // For regular domains like sub.example.com, keep last two parts
-          domain = parts.slice(-2).join('.');
-        }
-      }
+      const urlObj = new URL(url);
+      hostname = urlObj.hostname;
     } catch (e) {
-      console.error("Error in URL parsing:", e);
-      // Fallback to regex extraction
-      const match = url.match(/^(?:https?:\/\/)?(?:www\.)?([^\/]+)/i);
-      domain = match ? match[1] : url;
+      // If URL parsing fails, try a simple extraction
+      const match = url.match(/^(?:https?:\/\/)?([^\/]+)/i);
+      if (match && match[1]) {
+        hostname = match[1];
+      } else {
+        return url; // Return original if we can't parse it
+      }
     }
     
-    // Truncate very long domains
-    if (domain.length > MAX_DOMAIN_LENGTH) {
-      domain = domain.substring(0, MAX_DOMAIN_LENGTH) + "...";
+    // Remove www. prefix
+    if (hostname.startsWith("www.")) {
+      hostname = hostname.substring(4);
     }
     
-    console.log("Extracted domain:", domain, "from URL:", url);
-    return domain;
+    // Extract main domain from hostname
+    const parts = hostname.split(".");
+    
+    // Keep only the main domain
+    if (parts.length >= 2) {
+      // Handle special TLDs like .co.uk, .com.br etc.
+      if (parts.length > 2 && 
+          parts[parts.length-1].length === 2 && 
+          ["co", "com", "org", "net", "gov", "edu"].includes(parts[parts.length-2])) {
+        // For cases like example.co.uk, return example.co.uk
+        return parts.slice(-3).join(".");
+      } else {
+        // For normal domains like example.com or sub.example.com, return example.com
+        return parts.slice(-2).join(".");
+      }
+    }
+    
+    return hostname;
   } catch (e) {
     console.error("Error extracting domain:", e);
-    return url; // Return the original URL as fallback
-  }
-}
-
-function setDomainVariable(domain) {
-  try {
-    document.documentElement.style.setProperty("--current-domain", `"${domain}"`);
-    console.log("Domain variable set:", domain);
-  } catch (e) {
-    console.error("Error setting domain variable:", e);
+    return url;
   }
 }
 

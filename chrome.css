@@ -5,40 +5,36 @@
   }
   
   /* Hide the full URL text */
-  #urlbar-input-container #urlbar-input {
-    visibility: hidden !important;
+  #urlbar-input {
+    opacity: 0 !important;
   }
   
   /* Create pseudo-element to display only the domain */
-  #urlbar-input-container::after {
+  #urlbar::after {
     content: var(--current-domain) !important;
-    visibility: visible !important;
     position: absolute !important;
-    width: 100% !important;
-    left: 0 !important;
-    text-align: center !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
     font-size: 14px !important;
-    padding: 6px 0 !important;
+    color: inherit !important;
+    z-index: 1000 !important;
     pointer-events: none !important;
+    white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    max-width: 90% !important;
   }
   
   /* Keep the URL bar functional but centered */
-  #urlbar-input-container {
+  #urlbar {
     position: relative !important;
-    display: flex !important;
-    justify-content: center !important;
   }
   
   /* Ensure elements in the URL bar remain clickable */
-  #page-action-buttons, #tracking-protection-icon-container, #identity-box {
-    z-index: 1 !important;
-  }
-  
-  /* Adjust paddings/margins for better centering */
-  #urlbar {
-    text-align: center !important;
+  #page-action-buttons, 
+  #tracking-protection-icon-container, 
+  #identity-box {
+    z-index: 1001 !important;
   }
 } 
