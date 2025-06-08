@@ -213,35 +213,42 @@ function extractDomain(url) {
     
     // Extract domain from URL
     let domain = "";
+    
     try {
-      const urlObj = new URL(url);
+      // Simple and reliable domain extraction
+      let urlObj = new URL(url);
       domain = urlObj.hostname;
       
-      // Further simplify the domain - get only the second-level domain when possible
-      const domainParts = domain.split('.');
-      if (domainParts.length > 2) {
-        // Check for country code TLDs with subdomains (e.g., example.co.uk)
-        const lastPart = domainParts[domainParts.length - 1];
-        const secondLastPart = domainParts[domainParts.length - 2];
+      // Remove www. prefix if present
+      if (domain.startsWith("www.")) {
+        domain = domain.substring(4);
+      }
+      
+      // Get just the main domain (e.g., example.com from sub.example.com)
+      // This is a simplified approach that works for most cases
+      let parts = domain.split('.');
+      
+      if (parts.length > 2) {
+        // Check for country code TLDs (e.g., .co.uk, .com.au)
+        let lastPart = parts[parts.length - 1];
+        let secondLastPart = parts[parts.length - 2];
         
-        if ((lastPart.length === 2 && secondLastPart.length <= 3) || 
-            ['com', 'org', 'net', 'edu', 'gov', 'mil'].includes(lastPart)) {
-          // For cases like: sub.example.com -> example.com
-          domain = domainParts.slice(domainParts.length - 2).join('.');
-        } else if (lastPart.length === 2 && secondLastPart.length <= 3) {
-          // For cases like: sub.example.co.uk -> example.co.uk
-          domain = domainParts.slice(domainParts.length - 3).join('.');
+        // Special cases for known country TLDs
+        if (lastPart.length === 2 && ['co', 'ac', 'org', 'gov', 'edu'].includes(secondLastPart)) {
+          // For cases like example.co.uk, keep last three parts
+          if (parts.length > 2) {
+            domain = parts.slice(-3).join('.');
+          }
+        } else {
+          // For regular domains like sub.example.com, keep last two parts
+          domain = parts.slice(-2).join('.');
         }
       }
     } catch (e) {
-      // If URL parsing fails, try a simple regex
-      const match = url.match(/^(?:https?:\/\/)?([^\/]+)/i);
+      console.error("Error in URL parsing:", e);
+      // Fallback to regex extraction
+      const match = url.match(/^(?:https?:\/\/)?(?:www\.)?([^\/]+)/i);
       domain = match ? match[1] : url;
-    }
-    
-    // Remove www. prefix if present
-    if (domain.startsWith("www.")) {
-      domain = domain.substring(4);
     }
     
     // Truncate very long domains
@@ -249,10 +256,11 @@ function extractDomain(url) {
       domain = domain.substring(0, MAX_DOMAIN_LENGTH) + "...";
     }
     
+    console.log("Extracted domain:", domain, "from URL:", url);
     return domain;
   } catch (e) {
     console.error("Error extracting domain:", e);
-    return "";
+    return url; // Return the original URL as fallback
   }
 }
 
