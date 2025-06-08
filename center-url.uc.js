@@ -1,213 +1,96 @@
 // ==UserScript==
-// @name           Center URL Bar Domain
-// @version        1.4
-// @description    Shows only domain in URL bar when not focused
-// @author         qntsnc
+// @name           Center URL - Domain Display
+// @description    Sets the current domain CSS variable for the center-url mod
+// @author         Claude
 // @include        main
+// @startup        center_url_startup
+// @shutdown       center_url_shutdown
 // ==/UserScript==
 
-// Настройки мода
-const MOD_OPTIONS = {
-  SHOW_DOMAIN_ONLY: "mod.center-url.show-domain-only",
-  CENTER_URLBAR: "mod.center-url.center-urlbar",
-  UPDATE_METHOD: "mod.center-url.update-method"
-};
+let centerURLInstance = null;
+
+function center_url_startup() {
+  try {
+    console.log("Center URL mod starting up");
+    if (!centerURLInstance) {
+      centerURLInstance = new CenterURL();
+      centerURLInstance.init();
+    }
+  } catch (e) {
+    console.error("Error in center_url_startup:", e);
+  }
+}
+
+function center_url_shutdown() {
+  try {
+    console.log("Center URL mod shutting down");
+    if (centerURLInstance) {
+      centerURLInstance.unload();
+      centerURLInstance = null;
+    }
+  } catch (e) {
+    console.error("Error in center_url_shutdown:", e);
+  }
+}
 
 /**
- * Мод для отображения только домена в URL-баре Zen Browser
+ * Улучшенный скрипт для отображения только доменного имени в адресной строке
+ * Этот скрипт обеспечивает надежное обновление CSS-переменной --current-domain 
+ * при переключении вкладок и навигации
  */
-class CenterUrlDomain {
+class CenterURL {
   constructor() {
-    this.init();
-  }
-
-  /**
-   * Проверяет, включена ли определенная опция
-   * @param {string} optionName - имя опции для проверки
-   * @return {boolean} - состояние опции
-   */
-  isOptionEnabled(optionName) {
-    try {
-      // Проверяем, доступен ли Zen API
-      if (typeof zen !== "undefined" && zen.preferences && zen.preferences.get) {
-        return zen.preferences.get(optionName);
-      }
-      
-      // Проверяем через Services.prefs
-      if (Services && Services.prefs) {
-        return Services.prefs.getBoolPref(optionName, true);
-      }
-      
-      // Если API недоступен, возвращаем значение по умолчанию
-      return true;
-    } catch (e) {
-      console.error("Error checking option:", e);
-      return true;
-    }
-  }
-
-  /**
-   * Получает значение опции
-   * @param {string} optionName - имя опции
-   * @param {string} defaultValue - значение по умолчанию
-   * @return {string} - значение опции
-   */
-  getOptionValue(optionName, defaultValue) {
-    try {
-      // Проверяем, доступен ли Zen API
-      if (typeof zen !== "undefined" && zen.preferences && zen.preferences.get) {
-        return zen.preferences.get(optionName) || defaultValue;
-      }
-      
-      // Проверяем через Services.prefs
-      if (Services && Services.prefs) {
-        if (Services.prefs.getPrefType(optionName) === Services.prefs.PREF_STRING) {
-          return Services.prefs.getStringPref(optionName, defaultValue);
-        }
-      }
-      
-      // Если API недоступен, возвращаем значение по умолчанию
-      return defaultValue;
-    } catch (e) {
-      console.error("Error getting option value:", e);
-      return defaultValue;
-    }
-  }
-
-  /**
-   * Извлекает домен из URL и упрощает его до основного домена
-   * @param {string} url - URL для извлечения домена
-   * @return {string} - основной домен или пустая строка
-   */
-  getDomainFromUrl(url) {
-    try {
-      // Обработка специальных URL
-      if (url.startsWith("about:") || 
-          url.startsWith("chrome:") || 
-          url.startsWith("moz-extension:")) {
-        return url.split(/[/?#]/)[0];
-      }
-      
-      // Создаем объект URL для корректного парсинга
-      const urlObj = new URL(url);
-      let hostname = urlObj.hostname;
-      
-      // Удаляем www. префикс если есть
-      if (hostname.startsWith("www.")) {
-        hostname = hostname.substring(4);
-      }
-      
-      // Выделяем основной домен из хоста
-      const parts = hostname.split(".");
-      
-      // Сохраняем только основной домен
-      if (parts.length >= 2) {
-        // Обработка специальных TLD, таких как .co.uk, .com.br и т.д.
-        if (parts.length > 2 && 
-            parts[parts.length-1].length === 2 && 
-            ["co", "com", "org", "net", "gov", "edu"].includes(parts[parts.length-2])) {
-          // Для случаев типа example.co.uk
-          return parts.slice(-3).join(".");
-        } else {
-          // Для обычных доменов, таких как example.com или sub.example.com
-          return parts.slice(-2).join(".");
-        }
-      }
-      
-      return hostname;
-    } catch (e) {
-      // Если URL некорректный, пробуем простую регулярку
-      try {
-        const match = url.match(/^(?:https?:\/\/)?(?:www\.)?([^\/]+)/i);
-        if (match && match[1]) {
-          return match[1];
-        }
-      } catch (regexError) {
-        console.error("Error parsing URL with regex:", regexError);
-      }
-      
-      console.error("Error parsing URL:", e);
-      return url; // Возвращаем исходный URL если не смогли обработать
-    }
-  }
-
-  /**
-   * Обновляет отображаемый домен в URL-баре
-   */
-  updateDisplayedDomain() {
-    // Проверяем, включена ли опция отображения только домена
-    if (!this.isOptionEnabled(MOD_OPTIONS.SHOW_DOMAIN_ONLY)) {
-      return; // Если нет, не обновляем домен
-    }
+    // Кеширование состояния
+    this.currentTabId = null;
+    this.currentDomain = "";
+    this.lastLocation = "";
     
-    // Определяем метод обновления
-    const method = this.getOptionValue(MOD_OPTIONS.UPDATE_METHOD, "auto");
+    // Интервал проверки (мс)
+    this.checkInterval = 100;
+    this.intervalId = null;
     
-    try {
-      // Получаем текущий URL из активной вкладки
-      const gBrowser = window.gBrowser;
-      if (!gBrowser) return;
-      
-      const currentTab = gBrowser.selectedTab;
-      if (!currentTab) return;
-      
-      const browser = gBrowser.getBrowserForTab(currentTab);
-      if (!browser) return;
-      
-      const currentUrl = browser.currentURI?.spec || "";
-      
-      // Извлекаем домен
-      const domain = this.getDomainFromUrl(currentUrl);
-      
-      // Устанавливаем CSS-переменную с доменом для отображения
-      document.documentElement.style.setProperty("--current-domain", `"${domain}"`);
-      console.log("Domain set to:", domain);
-    } catch (e) {
-      console.error("Error updating domain:", e);
-      
-      // Если метод "auto" или ошибка, пробуем альтернативный метод
-      if (method === "auto" || method === "standard") {
-        this.updateDisplayedDomainAlternative();
-      }
-    }
+    // Объект для отслеживания состояния вкладок и их доменов
+    this.tabDomains = new Map();
+    
+    // Привязываем методы к this
+    this.boundUpdateDomain = this.updateCurrentDomain.bind(this);
+    this.boundOnTabChange = this.onTabChange.bind(this);
+    this.boundOnLocationChange = this.onLocationChange.bind(this);
+    this.boundCheckForChanges = this.checkForChanges.bind(this);
   }
   
   /**
-   * Альтернативный метод обновления домена через DOM
+   * Инициализация функциональности
    */
-  updateDisplayedDomainAlternative() {
-    try {
-      const urlbar = document.getElementById("urlbar");
-      if (!urlbar) return;
-      
-      const inputField = urlbar.querySelector(".urlbar-input");
-      if (!inputField) return;
-      
-      const currentUrl = inputField.value;
-      
-      // Извлекаем домен
-      const domain = this.getDomainFromUrl(currentUrl);
-      
-      // Устанавливаем CSS-переменную с доменом для отображения
-      document.documentElement.style.setProperty("--current-domain", `"${domain}"`);
-      console.log("Domain set to (alternative method):", domain);
-    } catch (e) {
-      console.error("Error updating domain (alternative method):", e);
-    }
+  init() {
+    console.log("Center URL: Initializing...");
+    
+    // Добавляем CSS стили
+    this.injectCSS();
+    
+    // Установка обработчиков событий для всех возможных случаев изменения URL
+    this.setupEventListeners();
+    
+    // Запуск интервала для периодической проверки изменений URL
+    this.startPolling();
+    
+    // Первоначальное обновление
+    this.updateCurrentDomain();
+    
+    console.log("Center URL: Initialized successfully");
   }
-
+  
   /**
-   * Слушатель изменения настроек
-   */
-  onPrefChanged() {
-    this.updateDisplayedDomain();
-  }
-
-  /**
-   * Добавляет CSS стили напрямую
+   * Добавляет CSS стили напрямую в DOM
    */
   injectCSS() {
     try {
+      // Удаляем предыдущие стили, если они есть
+      let oldStyle = document.getElementById("center-url-css");
+      if (oldStyle) {
+        oldStyle.remove();
+      }
+      
       const css = `
         /* URL-бар: только домен и центрирование */
         
@@ -271,154 +154,342 @@ class CenterUrlDomain {
         }
       `;
       
-      const styleEl = document.createElement("style");
-      styleEl.id = "center-url-style";
-      styleEl.textContent = css;
-      document.head.appendChild(styleEl);
+      const styleElem = document.createElement("style");
+      styleElem.id = "center-url-css";
+      styleElem.textContent = css;
+      document.head.appendChild(styleElem);
       
-      console.log("CSS styles injected successfully");
+      console.log("Center URL: CSS styles injected");
     } catch (e) {
-      console.error("Error injecting CSS:", e);
+      console.error("Center URL: Error injecting CSS:", e);
     }
   }
-
+  
   /**
-   * Настраивает слушатели событий для отслеживания изменений URL
+   * Настройка слушателей событий
    */
-  setupListeners() {
-    console.log("Setting up event listeners");
-    
-    // Привязываем this к методам для использования в слушателях
-    this.boundUpdateDomain = this.updateDisplayedDomain.bind(this);
-    this.boundPrefChanged = this.onPrefChanged.bind(this);
-    
-    // Добавляем CSS-стили
-    this.injectCSS();
-    
-    // Наблюдаем за изменениями вкладок
-    const tabContainer = gBrowser.tabContainer;
-    
-    // Обновляем домен при смене активной вкладки
-    tabContainer.addEventListener("TabSelect", this.boundUpdateDomain);
-    
-    // Обновляем домен при обновлении страницы
-    this.progressListener = {
-      onLocationChange: (aWebProgress, aRequest, aLocation, aFlags) => {
-        this.updateDisplayedDomain();
+  setupEventListeners() {
+    try {
+      // 1. Слушатели событий браузера
+      if (typeof gBrowser !== 'undefined') {
+        // Переключение вкладок
+        gBrowser.tabContainer.addEventListener("TabSelect", this.boundOnTabChange);
+        
+        // Изменение URL
+        gBrowser.addTabsProgressListener({
+          onLocationChange: this.boundOnLocationChange
+        });
+        
+        // При создании новой вкладки
+        gBrowser.tabContainer.addEventListener("TabOpen", (e) => {
+          // Небольшая задержка, чтобы дать вкладке загрузиться
+          setTimeout(this.boundUpdateDomain, 100);
+        });
       }
-    };
+      
+      // 2. Наблюдение за фокусом окна
+      window.addEventListener("focus", this.boundUpdateDomain, true);
+      
+      // 3. Слушатель DOM-событий для отслеживания нажатий на элементы вкладок
+      document.addEventListener("click", (e) => {
+        // Проверка, если клик был по вкладке или внутри вкладки
+        let el = e.target;
+        while (el && el.tagName) {
+          if (el.tagName.toLowerCase() === "tab" || 
+              (el.classList && (el.classList.contains("tab") || el.classList.contains("tabbrowser-tab")))) {
+            // Задержка, чтобы дать вкладке полностью активироваться
+            setTimeout(this.boundUpdateDomain, 50);
+            break;
+          }
+          el = el.parentElement;
+        }
+      });
+      
+      // 4. Отслеживание изменений в DOM адресной строки
+      const urlbar = document.getElementById("urlbar-input") || document.getElementById("urlbar");
+      if (urlbar) {
+        // Создаем наблюдатель за изменениями атрибутов URL-бара
+        const observer = new MutationObserver(this.boundUpdateDomain);
+        
+        // Наблюдаем за изменениями в значении и атрибутах
+        observer.observe(urlbar, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true
+        });
+      }
+    } catch (e) {
+      console.error("Center URL: Error setting up event listeners:", e);
+    }
+  }
+  
+  /**
+   * Запуск периодической проверки URL
+   */
+  startPolling() {
+    // Проверяем URL каждые 100мс как запасной вариант
+    this.intervalId = setInterval(this.boundCheckForChanges, this.checkInterval);
+  }
+  
+  /**
+   * Проверка изменений в URL
+   */
+  checkForChanges() {
+    try {
+      // Получаем текущий URL
+      const url = this.getCurrentURL();
+      
+      // Если URL изменился с последней проверки, обновляем домен
+      if (url && url !== this.lastLocation) {
+        this.lastLocation = url;
+        this.updateCurrentDomain();
+      }
+      
+      // Проверяем, не изменилась ли текущая вкладка
+      if (typeof gBrowser !== 'undefined' && gBrowser.selectedTab) {
+        const currentId = gBrowser.selectedTab.linkedPanel || gBrowser.selectedTab.id;
+        
+        if (this.currentTabId !== currentId) {
+          this.currentTabId = currentId;
+          this.updateCurrentDomain();
+        }
+      }
+    } catch (e) {
+      console.error("Center URL: Error checking for changes:", e);
+    }
+  }
+  
+  /**
+   * Обработчик события переключения вкладки
+   */
+  onTabChange() {
+    try {
+      // Обновляем URL сразу после переключения вкладки
+      this.updateCurrentDomain();
+      
+      // И еще раз через короткий промежуток времени для надежности
+      setTimeout(this.boundUpdateDomain, 50);
+    } catch (e) {
+      console.error("Center URL: Error on tab change:", e);
+    }
+  }
+  
+  /**
+   * Обработчик события изменения URL
+   */
+  onLocationChange(browser, webProgress, request, location, flags) {
+    try {
+      // Проверяем, является ли изменившийся браузер текущим
+      if (browser === gBrowser.selectedBrowser) {
+        const url = location ? location.spec : this.getCurrentURL();
+        this.lastLocation = url;
+        this.updateCurrentDomain();
+      }
+      
+      // Сохраняем домен для этой вкладки в кеш
+      if (browser && browser.getAttribute) {
+        const tabId = browser.getAttribute("linkedpanel") || browser.id;
+        if (tabId && location) {
+          const domain = this.extractDomain(location.spec);
+          this.tabDomains.set(tabId, domain);
+        }
+      }
+    } catch (e) {
+      console.error("Center URL: Error on location change:", e);
+    }
+  }
+  
+  /**
+   * Пытается получить текущий URL различными методами
+   */
+  getCurrentURL() {
+    let url = "";
     
-    gBrowser.addProgressListener(this.progressListener);
+    // Метод 1: через gBrowser API
+    try {
+      if (typeof gBrowser !== 'undefined' && gBrowser.selectedBrowser) {
+        if (gBrowser.selectedBrowser.currentURI && gBrowser.selectedBrowser.currentURI.spec) {
+          url = gBrowser.selectedBrowser.currentURI.spec;
+          if (url) return url;
+        }
+      }
+    } catch (e) {}
     
-    // Слушаем изменения настроек
-    if (Services && Services.prefs) {
-      Services.prefs.addObserver(MOD_OPTIONS.SHOW_DOMAIN_ONLY, this.boundPrefChanged);
-      Services.prefs.addObserver(MOD_OPTIONS.CENTER_URLBAR, this.boundPrefChanged);
-      Services.prefs.addObserver(MOD_OPTIONS.UPDATE_METHOD, this.boundPrefChanged);
+    // Метод 2: из адресной строки
+    try {
+      const urlbar = document.getElementById("urlbar-input") || document.getElementById("urlbar");
+      if (urlbar) {
+        if (urlbar.value) {
+          url = urlbar.value;
+        } else if (urlbar.textContent) {
+          url = urlbar.textContent;
+        }
+        
+        if (url) return url;
+      }
+    } catch (e) {}
+    
+    // Метод 3: из объекта location для текущей вкладки
+    try {
+      if (typeof gBrowser !== 'undefined' && gBrowser.selectedTab && gBrowser.selectedTab.linkedBrowser) {
+        const browser = gBrowser.selectedTab.linkedBrowser;
+        // Используем свойство contentWindow.location
+        if (browser.contentWindow && browser.contentWindow.location) {
+          url = browser.contentWindow.location.href;
+          if (url) return url;
+        }
+      }
+    } catch (e) {}
+    
+    // Метод 4: из кеша известных URL для вкладок
+    try {
+      if (typeof gBrowser !== 'undefined' && gBrowser.selectedTab) {
+        const tabId = gBrowser.selectedTab.linkedPanel || gBrowser.selectedTab.id;
+        if (tabId && this.tabDomains.has(tabId)) {
+          // Возвращаем домен вместо полного URL, так как это всё, что нам нужно
+          return "http://" + this.tabDomains.get(tabId);
+        }
+      }
+    } catch (e) {}
+    
+    // Если все методы не сработали, возвращаем пустую строку
+    return url;
+  }
+  
+  /**
+   * Обновляет текущий домен и CSS-переменную
+   */
+  updateCurrentDomain() {
+    try {
+      const url = this.getCurrentURL();
+      
+      if (url) {
+        const domain = this.extractDomain(url);
+        
+        // Обновляем только если домен изменился
+        if (domain !== this.currentDomain) {
+          console.log("Center URL: Updating domain to", domain);
+          this.currentDomain = domain;
+          
+          // Устанавливаем CSS-переменную для использования в стилях
+          document.documentElement.style.setProperty("--current-domain", `"${domain}"`);
+          
+          // Кешируем домен для текущей вкладки
+          if (typeof gBrowser !== 'undefined' && gBrowser.selectedTab) {
+            const tabId = gBrowser.selectedTab.linkedPanel || gBrowser.selectedTab.id;
+            if (tabId) {
+              this.tabDomains.set(tabId, domain);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Center URL: Error updating domain:", e);
+    }
+  }
+  
+  /**
+   * Извлекает домен из URL и упрощает его до основного домена
+   */
+  extractDomain(url) {
+    try {
+      // Обработка специальных URL
+      if (url.startsWith("about:")) {
+        return url.split("#")[0]; // Удаляем хеш-часть
+      }
+      
+      if (url.startsWith("moz-extension:")) {
+        return "Extension";
+      }
+      
+      if (url.startsWith("view-source:")) {
+        // Получаем домен из исходного URL после view-source:
+        const sourceUrl = url.substring(12);
+        return "Source: " + this.extractDomain(sourceUrl);
+      }
+      
+      if (url.startsWith("file:")) {
+        // Извлекаем имя файла из file:// URL
+        const parts = url.split("/");
+        return "File: " + parts[parts.length - 1];
+      }
+      
+      if (url.startsWith("data:")) {
+        return "Data URL";
+      }
+      
+      // Извлекаем домен с помощью объекта URL
+      try {
+        const urlObj = new URL(url);
+        let domain = urlObj.hostname;
+        
+        // Удаляем www. префикс для более чистого отображения
+        if (domain.startsWith("www.")) {
+          domain = domain.substring(4);
+        }
+        
+        // Выделяем основной домен (убираем поддомены)
+        const parts = domain.split(".");
+        if (parts.length >= 2) {
+          // Обработка специальных TLD вроде .co.uk, .com.br и т.д.
+          if (parts.length > 2 && 
+              parts[parts.length-1].length === 2 && 
+              ["co", "com", "org", "net", "gov", "edu"].includes(parts[parts.length-2])) {
+            // Для случаев вида example.co.uk
+            return parts.slice(-3).join(".");
+          } else {
+            // Для обычных доменов вроде sub.example.com -> example.com
+            return parts.slice(-2).join(".");
+          }
+        }
+        
+        // Обрезаем очень длинные домены
+        if (domain.length > 40) {
+          domain = domain.substring(0, 37) + "...";
+        }
+        
+        return domain || url;
+      } catch (e) {
+        // Если парсинг URL не удался, используем регулярное выражение
+        const match = url.match(/^(?:https?:\/\/)?(?:www\.)?([^\/]+)/i);
+        return match && match[1] ? match[1] : url;
+      }
+    } catch (e) {
+      console.error("Center URL: Error extracting domain:", e);
+      return url;
+    }
+  }
+  
+  /**
+   * Очистка ресурсов при выгрузке
+   */
+  unload() {
+    // Остановка интервала проверки
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
     }
     
-    // Поддержка Zen API
-    if (typeof zen !== "undefined" && zen.preferences && zen.preferences.onChanged) {
-      zen.preferences.onChanged.addListener((changes) => {
-        if (changes[MOD_OPTIONS.SHOW_DOMAIN_ONLY] || 
-            changes[MOD_OPTIONS.CENTER_URLBAR] ||
-            changes[MOD_OPTIONS.UPDATE_METHOD]) {
-          this.updateDisplayedDomain();
-        }
+    // Отписка от событий
+    if (typeof gBrowser !== 'undefined') {
+      gBrowser.tabContainer.removeEventListener("TabSelect", this.boundOnTabChange);
+      gBrowser.removeTabsProgressListener({
+        onLocationChange: this.boundOnLocationChange
       });
     }
     
-    // Дополнительные слушатели для поддержки различных событий
-    window.addEventListener("DOMContentLoaded", this.boundUpdateDomain);
-    window.addEventListener("pageshow", this.boundUpdateDomain);
-    window.addEventListener("load", this.boundUpdateDomain);
+    window.removeEventListener("focus", this.boundUpdateDomain, true);
     
-    // Обновляем домен при загрузке
-    this.updateDisplayedDomain();
-  }
-
-  /**
-   * Удаляет слушатели событий при выгрузке мода
-   */
-  cleanup() {
-    if (this.boundUpdateDomain) {
-      const tabContainer = gBrowser.tabContainer;
-      tabContainer.removeEventListener("TabSelect", this.boundUpdateDomain);
-      
-      window.removeEventListener("DOMContentLoaded", this.boundUpdateDomain);
-      window.removeEventListener("pageshow", this.boundUpdateDomain);
-      window.removeEventListener("load", this.boundUpdateDomain);
-      
-      if (this.progressListener) {
-        gBrowser.removeProgressListener(this.progressListener);
-      }
-      
-      if (Services && Services.prefs && this.boundPrefChanged) {
-        Services.prefs.removeObserver(MOD_OPTIONS.SHOW_DOMAIN_ONLY, this.boundPrefChanged);
-        Services.prefs.removeObserver(MOD_OPTIONS.CENTER_URLBAR, this.boundPrefChanged);
-        Services.prefs.removeObserver(MOD_OPTIONS.UPDATE_METHOD, this.boundPrefChanged);
-      }
-      
-      // Удаляем CSS стили
-      const styleEl = document.getElementById("center-url-style");
-      if (styleEl) {
-        styleEl.remove();
-      }
+    // Удаление стилей
+    const styleElem = document.getElementById("center-url-css");
+    if (styleElem) {
+      styleElem.remove();
     }
-  }
-
-  /**
-   * Инициализация мода
-   */
-  init() {
-    console.log("Initializing Center URL Domain mod");
-    if (gBrowserInit.delayedStartupFinished) {
-      this.setupListeners();
-    } else {
-      this.delayedListener = (subject, topic) => {
-        if (topic === "browser-delayed-startup-finished" && subject === window) {
-          Services.obs.removeObserver(this.delayedListener, "browser-delayed-startup-finished");
-          this.setupListeners();
-        }
-      };
-      Services.obs.addObserver(this.delayedListener, "browser-delayed-startup-finished");
-    }
-  }
-}
-
-// Создаем экземпляр мода
-var centerUrlDomain = null;
-
-// Startup handler
-function center_url_startup() {
-  try {
-    console.log("Center URL Domain mod startup");
-    if (!centerUrlDomain) {
-      centerUrlDomain = new CenterUrlDomain();
-    }
-  } catch (e) {
-    console.error("Error in center_url_startup:", e);
-  }
-}
-
-// Shutdown handler
-function center_url_shutdown() {
-  try {
-    console.log("Center URL Domain mod shutdown");
-    if (centerUrlDomain) {
-      centerUrlDomain.cleanup();
-      centerUrlDomain = null;
-    }
-  } catch (e) {
-    console.error("Error in center_url_shutdown:", e);
-  }
-}
-
-// Автозапуск мода если не определены startup/shutdown хуки
-if (typeof window !== 'undefined') {
-  try {
-    center_url_startup();
-  } catch (e) {
-    console.error("Error auto-starting Center URL Domain mod:", e);
+    
+    // Очистка карты доменов
+    this.tabDomains.clear();
+    
+    console.log("Center URL: Unloaded");
   }
 } 

@@ -1,40 +1,5 @@
-/* Center URL CSS styles */
-@-moz-document url-prefix(http), url-prefix(https), url-prefix(file), url-prefix(about), url-prefix(chrome) {
-  :root {
-    --current-domain: "";
-  }
-  
-  /* Hide the full URL text */
-  #urlbar-input {
-    opacity: 0 !important;
-  }
-  
-  /* Create pseudo-element to display only the domain */
-  #urlbar::after {
-    content: var(--current-domain) !important;
-    position: absolute !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    font-size: 14px !important;
-    color: inherit !important;
-    z-index: 1000 !important;
-    pointer-events: none !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 90% !important;
-  }
-  
-  /* Keep the URL bar functional but centered */
-  #urlbar {
-    position: relative !important;
-  }
-  
-  /* Ensure elements in the URL bar remain clickable */
-  #page-action-buttons, 
-  #tracking-protection-icon-container, 
-  #identity-box {
-    z-index: 1001 !important;
-  }
-} 
+/* 
+   CSS стили удалены из этого файла. 
+   Они теперь внедряются напрямую через JavaScript для повышения надежности.
+   См. функцию injectCSS() в center-url.uc.js
+*/ 
