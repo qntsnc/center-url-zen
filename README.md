@@ -6,7 +6,9 @@ This mod centers the URL bar in Zen Browser and displays only the domain name in
 
 ## Features
 
-- Displays only the domain name in the URL bar (example.com instead of https://example.com/page?query=value)
+- Displays only the main domain name in the URL bar (example.com instead of https://sub.example.com/page?query=value)
+- Simplifies subdomains (sub.example.com → example.com)
+- Properly handles country-specific domains (example.co.uk)
 - Centers the domain text for better visibility
 - Truncates very long domain names
 - Updates automatically when changing tabs or navigating to different URLs
@@ -14,14 +16,20 @@ This mod centers the URL bar in Zen Browser and displays only the domain name in
 
 ## Installation
 
-### Method 1: Direct Installation (recommended)
+### Method 1: Using Sine Extension (recommended)
+
+1. Install the Sine extension for Zen Browser
+2. Import this mod from GitHub
+3. Enable the mod
+
+### Method 2: Direct Installation
 
 1. Open Zen Browser's theme manager
 2. Click "Install from GitHub"
 3. Enter: `USERNAME/center-url-mod`
 4. Click Install
 
-### Method 2: Manual Installation
+### Method 3: Manual Installation
 
 1. Download this repository as a ZIP file
 2. Extract the contents to your Zen Browser profile folder
@@ -47,4 +55,14 @@ This mod is provided as-is under the MIT License.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Changelog
+
+### v1.1.0
+- Added domain simplification to show only the main domain
+- Improved handling of subdomains and country-specific TLDs
+- Updated documentation
+
+### v1.0.0
+- Initial release with URL centering functionality 

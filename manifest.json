@@ -1,7 +1,7 @@
 {
   "name": "Center URL",
-  "description": "Displays only the domain in the URL bar, centered for better visibility",
-  "version": "1.0.0",
+  "description": "Displays only the domain name in the URL bar, centered for better visibility",
+  "version": "1.1.0",
   "author": "Claude",
   "files": [
     "chrome/JS/center-url.uc.js",

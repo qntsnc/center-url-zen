@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Center URL
-// @version        1.0
+// @version        1.1
 // @description    Extracts domain from URL and sets it as CSS variable for styling
 // @author         Claude
 // @include        main
@@ -216,6 +216,23 @@ function extractDomain(url) {
     try {
       const urlObj = new URL(url);
       domain = urlObj.hostname;
+      
+      // Further simplify the domain - get only the second-level domain when possible
+      const domainParts = domain.split('.');
+      if (domainParts.length > 2) {
+        // Check for country code TLDs with subdomains (e.g., example.co.uk)
+        const lastPart = domainParts[domainParts.length - 1];
+        const secondLastPart = domainParts[domainParts.length - 2];
+        
+        if ((lastPart.length === 2 && secondLastPart.length <= 3) || 
+            ['com', 'org', 'net', 'edu', 'gov', 'mil'].includes(lastPart)) {
+          // For cases like: sub.example.com -> example.com
+          domain = domainParts.slice(domainParts.length - 2).join('.');
+        } else if (lastPart.length === 2 && secondLastPart.length <= 3) {
+          // For cases like: sub.example.co.uk -> example.co.uk
+          domain = domainParts.slice(domainParts.length - 3).join('.');
+        }
+      }
     } catch (e) {
       // If URL parsing fails, try a simple regex
       const match = url.match(/^(?:https?:\/\/)?([^\/]+)/i);
