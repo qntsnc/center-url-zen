@@ -1,0 +1,20 @@
+{
+  "name": "Center URL",
+  "description": "Displays only the domain in the URL bar, centered for better visibility",
+  "version": "1.0.0",
+  "author": "Claude",
+  "files": [
+    "chrome/JS/center-url.uc.js",
+    "chrome/CSS/center-url.uc.css"
+  ],
+  "settings": {
+    "maxDomainLength": {
+      "type": "integer",
+      "title": "Maximum Domain Length",
+      "description": "Maximum characters to display before truncating with ellipsis",
+      "value": 30,
+      "min": 10,
+      "max": 100
+    }
+  }
+} 

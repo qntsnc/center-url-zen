@@ -1,83 +1,50 @@
-# Center URL Bar Domain для Zen Browser
+# Center URL Mod for Zen Browser
 
-Этот мод для Zen Browser центрирует URL-бар и отображает только доменную часть URL, когда адресная строка не в фокусе.
+This mod centers the URL bar in Zen Browser and displays only the domain name instead of the full URL.
 
-## Функции
+![Demo Image](https://raw.githubusercontent.com/USERNAME/center-url-mod/main/demo.png)
 
-- Центрирование URL-бара
-- Отображение только домена (например, "mozilla.org" вместо "https://www.mozilla.org/ru/firefox/")
-- Восстановление полного URL при фокусе на адресной строке
-- Поддержка светлой и темной темы
-- Совместимость с различными версиями Zen Browser (1.12.0+)
+## Features
 
-## Настройки
+- Displays only the domain name in the URL bar (example.com instead of https://example.com/page?query=value)
+- Centers the domain text for better visibility
+- Truncates very long domain names
+- Updates automatically when changing tabs or navigating to different URLs
+- Maintains full URL bar functionality
 
-Мод предлагает несколько настраиваемых опций:
+## Installation
 
-- **Показывать только домен в URL-баре** - Отображает только доменную часть URL
-- **Центрировать текст URL-бара** - Центрирует текст в URL-баре
-- **Метод обновления URL** - Позволяет выбрать метод получения URL:
-  - **Авто (рекомендуется)** - Автоматически выбирает подходящий метод
-  - **Стандартный** - Использует DOM-элементы URL-бара
-  - **Устаревший** - Использует внутренние API браузера
+### Method 1: Direct Installation (recommended)
 
-## Совместимость
+1. Open Zen Browser's theme manager
+2. Click "Install from GitHub"
+3. Enter: `USERNAME/center-url-mod`
+4. Click Install
 
-- Zen Browser 1.12.0 и выше
-- Поддержка стандартного и плавающего URL-бара
-- Совместимость с различными темами Zen Browser
+### Method 2: Manual Installation
 
-## Установка
+1. Download this repository as a ZIP file
+2. Extract the contents to your Zen Browser profile folder
+   - Windows: `%APPDATA%\zen\Profiles\YOUR_PROFILE\chrome\`
+   - macOS: `~/Library/Application Support/zen/Profiles/YOUR_PROFILE/chrome/`
+   - Linux: `~/.zen/Profiles/YOUR_PROFILE/chrome/`
+3. Restart Zen Browser
 
-### Метод 1: Через Zen Mods (рекомендуется)
+## Configuration
 
-1. Откройте Zen Browser
-2. Перейдите в `Настройки` > `Zen Mods`
-3. Нажмите кнопку `Установить мод из файла`
-4. Выберите архив с этим модом
+You can modify the maximum domain length in the Zen Browser theme manager settings.
 
-### Метод 2: Ручная установка
+## Troubleshooting
 
-1. Найдите профиль Zen Browser:
-   - macOS: `~/Library/Application Support/zen/Profiles/[имя_профиля]/chrome/zen-themes`
-   - Windows: `%APPDATA%\zen\Profiles\[имя_профиля]\chrome\zen-themes`
-   - Linux: `~/.config/zen/Profiles/[имя_профиля]/chrome/zen-themes`
-2. Создайте папку `center-url` в каталоге `zen-themes`
-3. Скопируйте файлы `chrome.css`, `urlbar.js` и `preferences.json` в эту папку
-4. Перезапустите Zen Browser
+If the domain display doesn't update properly:
+- Make sure the scripts are loaded correctly
+- Check the browser console for any errors
+- Try restarting the browser
 
-### Метод 3: Установка через userChrome.js
+## License
 
-Если ваша версия Zen Browser поддерживает userChrome.js:
+This mod is provided as-is under the MIT License.
 
-1. Скопируйте файл `urlbar.uc.js` или `urlbar.uc.mjs` в папку `chrome` вашего профиля
-2. Убедитесь, что в `userChrome.js` включена поддержка скриптов
-3. Перезапустите Zen Browser
+## Contributing
 
-## Устранение неполадок
-
-Если мод не работает:
-
-1. Проверьте версию Zen Browser (требуется >=1.12.0)
-2. Убедитесь, что файлы расположены в правильной директории
-3. Попробуйте изменить метод обновления URL в настройках мода
-4. Проверьте наличие ошибок в консоли разработчика (Ctrl+Shift+I > Console)
-
-## Обновления
-
-### Версия 1.2.0
-- Добавлена поддержка последних версий Zen Browser
-- Улучшена совместимость с плавающим URL-баром
-- Добавлена настройка методов обновления URL
-- Улучшена поддержка светлой и темной темы
-
-### Версия 1.1.0
-- Добавлены настройки для центрирования и отображения домена
-- Улучшена совместимость с различными версиями Zen Browser
-
-### Версия 1.0.0
-- Первый релиз
-
-## Лицензия
-
-MIT 
+Contributions are welcome! Please feel free to submit a Pull Request. 
