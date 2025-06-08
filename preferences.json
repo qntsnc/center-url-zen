@@ -1,0 +1,14 @@
+{
+  "mod.center-url.show-domain-only": {
+    "title": "Show domain only",
+    "description": "When URL bar is not focused, show only the domain name",
+    "type": "bool",
+    "value": true
+  },
+  "mod.center-url.center-urlbar": {
+    "title": "Center URL bar",
+    "description": "Center the URL bar content",
+    "type": "bool",
+    "value": true
+  }
+} 
